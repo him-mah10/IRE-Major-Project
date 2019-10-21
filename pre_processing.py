@@ -1,6 +1,7 @@
 import sys
 import string
 import numpy as np
+import _pickle as cPickle
 
 embed = {}
 
@@ -10,10 +11,8 @@ def get_train_file(train, output):
     with open(train, 'r') as f1:
         for line in f1:
             tokens = line.strip().split('\t')
-            print(tokens)
             if(len(tokens) > 5):
                 train_data.append(line)
-    print(len(train_data))
     for i in range(len(train_data)):
         cnt = 0
         sent1 = train_data[i].strip().split('\t')
@@ -31,20 +30,32 @@ def get_train_file(train, output):
     f.close()
 
 
-def get_word_embeddings(file, index, vocab_cnt):
+def get_word_embeddings(file1, file2, index, vocab_cnt):
     embedding_matrix = np.random.uniform(-1, 1, size=(vocab_cnt, 100))
-    with open(file, 'r') as f:
+    with open(file1, 'r') as f:
         for line in f:
             tokens = line.strip().split('\t')
             if (len(tokens) > 5):
                 words = tokens[5].strip().split(' ')
                 for word in words:
                     if word in index:
-                        if word in embed:
-                            embedding_matrix[index[word]] = embed[word]
-                        else:
-                            embedding_matrix[index[word]] = embed["<unknown>"]
-
+                        if index[word] not in embedding_matrix:
+                            if word in embed:
+                                embedding_matrix[index[word]] = embed[word]
+                            else:
+                                embedding_matrix[index[word]] = embed["<unknown>"]
+    with open(file2, 'r') as f:
+        for line in f:
+            tokens = line.strip().split('\t')
+            if (len(tokens) > 5):
+                words = tokens[5].strip().split(' ')
+                for word in words:
+                    if word in index:
+                        if index[word] not in embedding_matrix:
+                            if word in embed:
+                                embedding_matrix[index[word]] = embed[word]
+                            else:
+                                embedding_matrix[index[word]] = embed["<unknown>"]
     embedding_matrix = embedding_matrix.astype(np.float32)
     return embedding_matrix
 
@@ -104,7 +115,6 @@ def read_files(file, embed, index, vocab_cnt):
             trigger2_dist = get_distance_index(tokens[5], tokens[5])
             sents.append((np.asarray(sent1).astype('int32'),np.asarray(sent1_dist).astype('int32'), np.asarray(trigger1).astype('int32'),np.asarray(trigger1_dist).astype('int32'), np.asarray(sent2).astype('int32'), np.asarray(sent2_dist).astype('int32'),
              np.asarray(trigger2).astype('int32'), np.asarray(trigger2_dist).astype('int32'), np.asarray(int(tokens[6])).astype('int32'), np.asarray(int(tokens[7])).astype('int32')))
-    print(cnt)
     return sents, index, vocab_cnt
 
 
@@ -120,10 +130,15 @@ train = './final_train.txt'
 test = './final_test.txt'
 vocab_cnt = 0
 index = {}
+print("train,test created")
 embed["<unknown>"] = np.zeros(100).astype('float32')
 train_sents, index, vocab_cnt = read_files(train, embed, index, vocab_cnt)
+print("train done")
 test_sents, index, vocab_cnt = read_files(test, embed, index, vocab_cnt)
-print(len(train_sents))
-print(len(index))
-#Get embeddings dictionary from glove
-#bilstm model
+print("test done")
+embedding_matrix = get_word_embeddings('./train.txt', './test.txt', index, vocab_cnt)
+print("embedding matrix done")
+with open('./dump_file', 'wb') as f:
+    cPickle.dump(train_sents, f)
+    cPickle.dump(test_sents, f)
+    cPickle.dump(embedding_matrix, f)
