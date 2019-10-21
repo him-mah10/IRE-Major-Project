@@ -31,22 +31,22 @@ class Attention:
         #Embeddings for sent1
         self.embedded_words1 = tf.nn.embedding_lookup(self.W_em1, self.input1_text1)
         self.embedded_words2 = tf.nn.embedding_lookup(self.W_em2, self.input1_text2)
-        self.embedded1_words = tf.concat(self.embedded_words1, self.embedded_words2, axis = 1)
+        self.embedded1_words = tf.concat(self.embedded_words1, self.embedded_words2, axis = 2)
 
         #Embeddings for sent2
         self.embedded_words1 = tf.nn.embedding_lookup(self.W_em1, self.input2_text1)
         self.embedded_words2 = tf.nn.embedding_lookup(self.W_em2, self.input2_text2)
-        self.embedded2_words = tf.concat(self.embedded_words1, self.embedded_words2, axis = 1)
+        self.embedded2_words = tf.concat(self.embedded_words1, self.embedded_words2, axis = 2)
 
         #Embeddings for trigger1
         self.embedded_trigger_words1 = tf.nn.embedding_lookup(self.W_em1, self.trigger1_text1)
         self.embedded_trigger_words2 = tf.nn.embedding_lookup(self.W_em2, self.trigger1_text2)
-        self.embedded1_trigger_words = tf.concat(self.embedded_trigger_words1, self.embedded_trigger_words2, axis = 1)
+        self.embedded1_trigger_words = tf.concat(self.embedded_trigger_words1, self.embedded_trigger_words2, axis = 2)
 
         #Embeddings for trigger2
         self.embedded_trigger_words1 = tf.nn.embedding_lookup(self.W_em1, self.trigger2_text1)
         self.embedded_trigger_words2 = tf.nn.embedding_lookup(self.W_em2, self.trigger2_text2)
-        self.embedded2_trigger_words = tf.concat(self.embedded_trigger_words1, self.embedded_trigger_words2, axis = 1)
+        self.embedded2_trigger_words = tf.concat(self.embedded_trigger_words1, self.embedded_trigger_words2, axis = 2)
 
         #BiLSTM for sent1 and sent2
         fw_cell = tf.nn.rnn_cell.BasicLSTMCell(hidden_size)
@@ -61,10 +61,10 @@ class Attention:
         #BiLSTM for event trigger1 and event trigger2
         (self.output1_fw, self.output1_bw), states = tf.nn.bidirectional_dynamic_rnn(cell_fw=fw_cell,cell_bw=bw_cell,inputs=self.embedded1_trigger_words,sequence_length=trigger_text_length,dtype=tf.float32)
         (self.output2_fw, self.output2_bw), states = tf.nn.bidirectional_dynamic_rnn(cell_fw=fw_cell,cell_bw=bw_cell,inputs=self.embedded2_trigger_words,sequence_length=trigger_text_length,dtype=tf.float32)
-        self.H1 = tf.concat([self.output1_fw[trigger_text_length-1], self.output1_bw[0]], axis=2)
-        H1_trigger_reshape = tf.reshape(self.H1, [-1, 2])
+        self.H1 = tf.concat([self.output1_fw[trigger_text_length-1,:,:], self.output1_bw[0,:,:]], axis=2)
+        # H1_trigger_reshape = tf.reshape(self.H1, [-1, 2*hidden_size])
         self.H2 = tf.concat([self.output2_fw[trigger_text_length-1], self.output2_bw[0]], axis=2)
-        H2_trigger_reshape = tf.reshape(self.H2, [-1, 2])
+        # H2_trigger_reshape = tf.reshape(self.H2, [-1, 2*hidden_size])
 
         #selectivegate
         
