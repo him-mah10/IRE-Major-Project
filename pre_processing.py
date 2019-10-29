@@ -62,6 +62,7 @@ def get_word_embeddings(file1, file2, index, vocab_cnt):
 
 def get_word_index(sent, index, vocab_cnt):
     ans = []
+    sent = sent.strip().split(' ')
     for word in sent:
         if word not in index:
             index[word] = vocab_cnt
@@ -70,10 +71,11 @@ def get_word_index(sent, index, vocab_cnt):
     return ans, index, vocab_cnt
 
 
-def get_distance_index(sent, trigger):
+def get_distance_index(sent1, trigger):
     index = {}
     cnt = 0
     ans = []
+    sent = sent1.strip().split(' ')
     for word in sent:
         if word == trigger[0]:
             break
@@ -113,8 +115,14 @@ def read_files(file, embed, index, vocab_cnt):
             sent2_dist = get_distance_index(tokens[4], tokens[5])
             trigger2, index, vocab_cnt = get_word_index(tokens[5], index, vocab_cnt)
             trigger2_dist = get_distance_index(tokens[5], tokens[5])
+            trigger_common_words = 0
+            trig1 = tokens[2].strip().split(' ')
+            trig2 = tokens[5].strip().split(' ')
+            for val in trig1:
+                if val in trig2:
+                    trigger_common_words += 1
             sents.append((np.asarray(sent1).astype('int32'),np.asarray(sent1_dist).astype('int32'), np.asarray(trigger1).astype('int32'),np.asarray(trigger1_dist).astype('int32'), np.asarray(sent2).astype('int32'), np.asarray(sent2_dist).astype('int32'),
-             np.asarray(trigger2).astype('int32'), np.asarray(trigger2_dist).astype('int32'), np.asarray(int(tokens[6])).astype('int32'), np.asarray(int(tokens[7])).astype('int32')))
+             np.asarray(trigger2).astype('int32'), np.asarray(trigger2_dist).astype('int32'), np.asarray(int(tokens[6])).astype('int32'), np.asarray(trigger_common_words).astype('int32'), np.asarray(int(tokens[7])).astype('int32')))
     return sents, index, vocab_cnt
 
 
