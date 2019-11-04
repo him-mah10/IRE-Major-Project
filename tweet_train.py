@@ -11,6 +11,7 @@ tf.flags.DEFINE_integer("max_sentence_length", 30, "Max sentence length in train
 tf.flags.DEFINE_integer("max_trigger_length", 7, "Max trigger length in train/test data")
 tf.flags.DEFINE_integer("hidden_size", 256, "Size of LSTM hidden layer")
 tf.flags.DEFINE_integer("batch_size", 64, "Batch Size")
+tf.flags.DEFINE_integer("evaluate_every", 100, "Evaluate model on dev set after this many steps")
 
 FLAGS = tf.flags.FLAGS
 
@@ -45,9 +46,25 @@ def get_data(sents):
     return sent1_word_index, sent1_dist_index, trigger1_word_index, trigger1_dist_index, sent2_word_index, sent2_dist_index, trigger2_word_index, trigger2_dist_index, label, time_diff
 
 
-def make_batches(Xtrain, Ytrain):
+def make_batches(train_sent1_word_index, train_sent1_dist_index, train_trigger1_word_index, train_trigger1_dist_index, train_sent2_word_index, train_sent2_dist_index, train_trigger2_word_index, train_trigger2_dist_index, label, time_diff ):
     batches = []
     # batches.append([xtrain_batch[],ytrain_batch[]])
+    n = len(label)
+    for i in range(0, n, FLAGS.batch_size):
+        batch = []
+        batch.append(train_sent1_word_index[i:min(i+FLAGS.batch_size, n-1)])
+        batch.append(train_sent1_dist_index[i:min(i+FLAGS.batch_size, n-1)])
+        batch.append(train_trigger1_word_index[i:min(i+FLAGS.batch_size, n-1)])
+        batch.append(train_trigger1_dist_index[i:min(i+FLAGS.batch_size, n-1)])
+        batch.append(train_sent2_word_index[i:min(i+FLAGS.batch_size, n-1)])
+        batch.append(train_sent2_dist_index[i:min(i+FLAGS.batch_size, n-1)])
+        batch.append(train_trigger2_word_index[i:min(i+FLAGS.batch_size, n-1)])
+        batch.append(train_trigger2_dist_index[i:min(i+FLAGS.batch_size, n-1)])
+        batch.append(label[i:min(i+FLAGS.batch_size, n-1)])
+        batch.append(time_diff[i:min(i+FLAGS.batch_size, n-1)])
+    
+        batches.append(batch)
+
     return batches
 
 def train(file_path):
@@ -60,6 +77,9 @@ def train(file_path):
     test_sent1_word_index, test_sent1_dist_index, test_trigger1_word_index, test_trigger1_dist_index, test_sent2_word_index, test_sent2_dist_index, test_trigger2_word_index, test_trigger2_dist_index, test_label, test_time_diff = get_data(test_sents)
 
     # vocal_count = embedding_matrix.shape[0]
+
+##------------------------------------------------------------------------------------------------
+    ## PADDING DATA
 
     for i in range(len(train_sent1_word_index)):
         train_sent1_word_index[i] = np.pad(train_sent1_word_index[i], pad_width=(0,FLAGS.max_sentence_length - len(train_sent1_word_index[i])), mode='constant', constant_values=(0, FLAGS.max_sentence_length))
@@ -111,7 +131,9 @@ def train(file_path):
     for i in range(len(test_trigger2_word_index)):
         test_trigger2_dist_index[i] = np.pad(test_trigger2_dist_index[i], pad_width=(0,FLAGS.max_trigger_length - len(test_trigger2_dist_index[i])), mode='constant', constant_values=(0, FLAGS.max_trigger_length))
 
-    
+##-----------------------------------------------------------------------------------
+# TRAINING DATA 
+
     vocab_count = 1000
     X_train = []
     Y_train = []
@@ -122,6 +144,9 @@ def train(file_path):
         sess = tf.Session(config=session_conf)
         with sess.as_default():
             # sequence_length, trigger_length, num_classes, vocab_size, word_embedding_size ,dist_embedding_size, hidden_size, attention_size, decay_rate
+            
+            ##--------- CREATE MODEL----------
+            
             model = Attention(sequence_length= FLAGS.max_sentence_length,
                         trigger_length = FLAGS.max_trigger_length,
                         num_classes = FLAGS.max_sentence_length,
@@ -135,26 +160,32 @@ def train(file_path):
             global_step = tf.Variable(0, name="global_step", trainable=False)
             train_op = tf.train.AdamOptimizer(FLAGS.learning_rate).minimize(model.loss, global_step=global_step)
 
-            batches = make_batches(train_sent1_word_index, train_sent1_dist_index, train_trigger1_word_index, train_trigger1_dist_index, train_sent2_word_index, train_sent2_dist_index, train_trigger2_word_index, train_trigger2_dist_index)
+            batches = make_batches(train_sent1_word_index, train_sent1_dist_index, train_trigger1_word_index, train_trigger1_dist_index, train_sent2_word_index, train_sent2_dist_index, train_trigger2_word_index, train_trigger2_dist_index, label, time_diff)
+
+            ##------------ TRAIN BATCHES --------------
 
             for batch in batches:
-                x_batch = batch[0], y_batch = batch[1]
                 feed_dict = {
-                    model.input1_text1: x_batch[0],
-                    model.input1_text2: x_batch[1],
-                    model.trigger1_text1: x_batch[2],
-                    model.trigger1_text2: x_batch[3],
-                    model.input2_text1: x_batch[4],
-                    model.input2_text2: x_batch[5],
-                    model.trigger2_text1: x_batch[6],
-                    model.trigger2_text2: x_batch[7],
-                    model.input_y: y_batch
+                    model.input1_text1: batch[0],
+                    model.input1_text2: batch[1],
+                    model.trigger1_text1: batch[2],
+                    model.trigger1_text2: batch[3],
+                    model.input2_text1: batch[4],
+                    model.input2_text2: batch[5],
+                    model.trigger2_text1: batch[6],
+                    model.trigger2_text2: batch[7],
+                    model.labels = batch[8],
+                    model.V_d = batch[9]
+                    ## TODO :   set model.V_d and model.V_w
                 }
 
                 _, step, loss = sess.run([train_op, global_step, model.loss], feed_dict)
-        
                 
-        # shuffling data
+                # if step % FLAGS.evaluate_every == 0:
+                #     print("\nEvaluation:")
+                
+
+            
 
 if __name__ == "__main__":
   file_path = "dump_file"
