@@ -21,7 +21,9 @@ def get_train_file(train, output):
             val = int(sent2[4]) - int(sent1[4])
             if (val <= 604800000):
                 label = 0
+                # print(str(sent1[2]) + "     " + str(sent2[2]))
                 if (int(sent1[2]) == int(sent2[2])):
+                    # print("hereee")
                     label = 1
                 line = sent1[0] + '\t' + sent1[5] + '\t' + sent1[3] + '\t' + sent2[0] + '\t' + sent2[5] + '\t' + sent2[3] + '\t' + str(label) +'\t' + str(int(val/1000)) + '\n'
                 f.write(line)
@@ -71,17 +73,24 @@ def get_word_index(sent, index, vocab_cnt):
     return ans, index, vocab_cnt
 
 
-def get_distance_index(sent1, trigger):
+def get_distance_index(sent1, trigger1):
     index = {}
     cnt = 0
     ans = []
     sent = sent1.strip().split(' ')
-    for word in sent:
-        if word == trigger[0]:
-            break
-        cnt += 1
+    trigger = trigger1.strip().split(' ')
+    # print(sent)
+    for word2 in trigger:
+        cnt = 0
+        for word in sent:
+            if word == word2:
+                break
+            cnt += 1
     prev = 0
     i = cnt
+    if(i == len(sent)):
+        # print("hello")
+        return ans
     while i>=0:
         if sent[i] in trigger:
             index[sent[i]] = 0
@@ -115,6 +124,8 @@ def read_files(file, embed, index, vocab_cnt):
             sent2_dist = get_distance_index(tokens[4], tokens[5])
             trigger2, index, vocab_cnt = get_word_index(tokens[5], index, vocab_cnt)
             trigger2_dist = get_distance_index(tokens[5], tokens[5])
+            if(sent1_dist == [] or sent2_dist == [] or trigger1_dist == [] or trigger2_dist == []):
+                continue
             trigger_common_words = 0
             trig1 = tokens[2].strip().split(' ')
             trig2 = tokens[5].strip().split(' ')
