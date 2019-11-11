@@ -273,6 +273,8 @@ def eval():
             # correct_predictions = float(sum(all_predictions == test_label2))
             print("\nTotal number of test examples: {}".format(len(test_label2)))
             print("Accuracy: {:g}\n".format(correct_predictions / float(len(test_label2))))
+            f1_score1 = f1_score(test_label2, all_predictions)
+            print("F1 score : ", f1_score1)
 
 
 file_path = "dump_file"
