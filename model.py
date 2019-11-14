@@ -23,7 +23,7 @@ class Attention:
         trigger2_text_length =  self._length(self.trigger2_text1)
 
         #labels
-        self.labels = tf.placeholder(tf.int32, shape=[None, 1], name='labels')
+        self.labels = tf.placeholder(tf.float32, shape=[None, 2], name='labels')
         self.bsz_size = tf.placeholder(tf.int32, name="bsz_size")
 
         #common words between triggers
@@ -33,11 +33,11 @@ class Attention:
         initializer = tf.contrib.layers.xavier_initializer()
 
         #Embeddings
-        self.W_em1 = tf.Variable(tf.constant(0.0, shape=[vocab_size, word_embedding_size]),trainable=True, name="W_em1")
-        self.embedding_placeholder = tf.placeholder(tf.float32, [vocab_size, word_embedding_size])
-        self.embedding_init = self.W_em1.assign(self.embedding_placeholder)
+        self.W_em1 = tf.Variable(tf.constant(0.0, shape=[vocab_size, word_embedding_size]), name="W_em1")
+        #self.embedding_placeholder = tf.placeholder(tf.float32, [vocab_size, word_embedding_size], name="placeholder")
+        #self.embedding_init = self.W_em1.assign(self.embedding_placeholder, name="init")
         self.W_em2 = tf.Variable(tf.random_uniform([77, dist_embedding_size], -1.0, 1.0), name="W_em2")
-
+        #initializer = tf.contrib.layers.xavier_initializer()
         #Embeddings for sent1
         self.embedded_words1 = tf.nn.embedding_lookup(self.W_em1, self.input1_text1)
         self.embedded_words2 = tf.nn.embedding_lookup(self.W_em2, self.input1_text2)
@@ -72,15 +72,27 @@ class Attention:
         print("\n\n\n\n\n")
         (self.output1_fw, self.output1_bw), states = tf.nn.bidirectional_dynamic_rnn(cell_fw=fw_cell,cell_bw=bw_cell,inputs=self.embedded1_trigger_words,sequence_length=trigger1_text_length,dtype=tf.float32)
         (self.output2_fw, self.output2_bw), states = tf.nn.bidirectional_dynamic_rnn(cell_fw=fw_cell,cell_bw=bw_cell,inputs=self.embedded2_trigger_words,sequence_length=trigger2_text_length,dtype=tf.float32)
-
+        #len1 = self._length(self.trigger1_text1)
         #TODO : original length instead of trigger_length
-        val1 = tf.slice(self.output1_fw, [0,trigger_length-1,0],[self.bsz_size, 1, hidden_size], name="val1")
-        val2 = tf.slice(self.output1_bw, [0,0,0],[self.bsz_size, 1, hidden_size], name="val2")
-        self.H1_trigger = tf.concat([val1, val2], axis=2)
+        #with tf.Session() as sess:
+        #    len2 = len1.eval()
+        #len2 = self._length(self.trigger1_text1)
+        #print(len2)
+        print(self.output1_fw.get_shape().as_list())
+        print(trigger1_text_length.get_shape().as_list())
+        elems = (self.output1_fw, self.output1_bw, trigger1_text_length)
+        #val1 = tf.map_fn(lambda x: tf.slice(x[0], [x[1],0],[1, hidden_size]), elems)
+        #val1 = tf.slice(self.output1_fw, [0,len2,0],[self.bsz_size, 1, hidden_size], name="val1")
+        #val2 = tf.slice(self.output1_bw, [0,0,0],[self.bsz_size, 1, hidden_size], name="val2")
+        #self.H1_trigger = tf.concat([val1, val2], axis=2)
         # H1_trigger_reshape = tf.reshape(self.H1, [-1, 2*hidden_size])
-        val3 = tf.slice(self.output2_fw, [0,trigger_length-1,0],[self.bsz_size, 1, hidden_size], name="val3")
-        val4 = tf.slice(self.output2_bw, [0,0,0],[self.bsz_size, 1, hidden_size], name="val4")
-        self.H2_trigger = tf.concat([val3, val4], axis=2)
+        self.H1_trigger = tf.map_fn(lambda x: tf.concat([tf.slice(x[0], [x[2]-1,0],[1, hidden_size]), tf.slice(x[1], [0,0],[1, hidden_size])], axis = 1), elems, dtype=tf.float32)
+        print(self.H1_trigger.get_shape().as_list())
+        #val3 = tf.slice(self.output2_fw, [0,trigger_length-1,0],[self.bsz_size, 1, hidden_size], name="val3")
+        #val4 = tf.slice(self.output2_bw, [0,0,0],[self.bsz_size, 1, hidden_size], name="val4")
+        #self.H2_trigger = tf.concat([val3, val4], axis=2)
+        elems2 = (self.output2_fw, self.output2_bw, trigger2_text_length)
+        self.H2_trigger = tf.map_fn(lambda x: tf.concat([tf.slice(x[0], [x[2]-1,0],[1, hidden_size]), tf.slice(x[1], [0,0],[1, hidden_size])], axis = 1), elems2, dtype=tf.float32)
         # H2_trigger_reshape = tf.reshape(self.H2, [-1, 2*hidden_size])
 
         #-----------------------------------------------------------------
@@ -129,13 +141,15 @@ class Attention:
         V_pro = tf.add(tf.matmul(V_ds, W_pro), tf.tile(b_pro, [self.bsz_size,1]))
         # print("V_em2 sizeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
         # print(V_pro.get_shape().as_list())
-        self.score = tf.argmax(V_pro, axis=1, output_type=tf.dtypes.int32, name="predictions")
+        self.score = tf.argmax(V_pro, axis=1, output_type=tf.dtypes.int64, name="predictions")
         # print("sizeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
         # print(self.score.get_shape().as_list())
         #loss and accuracy
+        print(self.labels)
+        print(V_pro)
         losses = tf.nn.softmax_cross_entropy_with_logits(logits=V_pro, labels=self.labels)
         self.loss = tf.reduce_mean(losses)
-        correct_predictions = tf.equal(self.score, self.labels)
+        correct_predictions = tf.equal(self.score, tf.argmax(self.labels, axis=1))
         self.accuracy = tf.reduce_mean(tf.cast(correct_predictions, tf.float32), name="accuracy")
 
 
