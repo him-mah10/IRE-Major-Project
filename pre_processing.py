@@ -137,14 +137,14 @@ def read_files(file, embed, index, vocab_cnt):
     return sents, index, vocab_cnt
 
 
-with open('./glove.twitter.27B/glove.twitter.27B.100d.txt', 'r') as f:
+with open('./project/glove.twitter.27B/glove.twitter.27B.100d.txt', 'r') as f:
     lines = f.readlines()
     for line in lines:
         line = line.split(' ')
         embedding = [float(x) for x in line[1:]]
         embed[line[0]] = np.asarray(embedding).astype('float32')
-get_train_file('./train.txt', './final_train.txt')
-get_train_file('./test.txt', './final_test.txt')
+get_train_file('./project/train.txt', './final_train.txt')
+get_train_file('./project/test.txt', './final_test.txt')
 train = './final_train.txt'
 test = './final_test.txt'
 vocab_cnt = 0
@@ -155,7 +155,7 @@ train_sents, index, vocab_cnt = read_files(train, embed, index, vocab_cnt)
 print("train done")
 test_sents, index, vocab_cnt = read_files(test, embed, index, vocab_cnt)
 print("test done")
-embedding_matrix = get_word_embeddings('./train.txt', './test.txt', index, vocab_cnt)
+embedding_matrix = get_word_embeddings('./project/train.txt', './project/test.txt', index, vocab_cnt)
 print("embedding matrix done")
 with open('./dump_file', 'wb') as f:
     cPickle.dump(train_sents, f)
